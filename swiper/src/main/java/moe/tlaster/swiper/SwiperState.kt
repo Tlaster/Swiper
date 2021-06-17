@@ -2,6 +2,9 @@ package moe.tlaster.swiper
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import kotlin.math.absoluteValue
 import kotlin.math.withSign
 
@@ -11,7 +14,11 @@ fun rememberSwiperState(
     onDismiss: () -> Unit = {},
     onEnd: () -> Unit = {},
 ): SwiperState {
-    return remember {
+    return rememberSaveable(
+        saver = SwiperState.Saver(
+            onStart, onDismiss, onEnd
+        )
+    ) {
         SwiperState(
             onStart = onStart,
             onDismiss = onDismiss,
@@ -25,6 +32,7 @@ class SwiperState(
     internal val onStart: () -> Unit = {},
     internal val onDismiss: () -> Unit = {},
     internal val onEnd: () -> Unit = {},
+    initialOffset: Float = 0f,
 ) {
     internal var maxHeight: Int = 0
         set(value) {
@@ -32,7 +40,7 @@ class SwiperState(
             _offset.updateBounds(lowerBound = -value.toFloat(), upperBound = value.toFloat())
         }
     internal var dismissed by mutableStateOf(false)
-    private var _offset = Animatable(0f)
+    private var _offset = Animatable(initialOffset)
 
     val offset: Float
         get() = _offset.value
@@ -71,5 +79,27 @@ class SwiperState(
     private suspend fun restore() {
         onEnd.invoke()
         _offset.animateTo(0f)
+    }
+
+    companion object {
+        fun Saver(
+            onStart: () -> Unit = {},
+            onDismiss: () -> Unit = {},
+            onEnd: () -> Unit = {},
+        ): Saver<SwiperState, *> = listSaver(
+            save = {
+                listOf(
+                    it.offset,
+                )
+            },
+            restore = {
+                SwiperState(
+                    onStart = onStart,
+                    onDismiss = onDismiss,
+                    onEnd = onEnd,
+                    initialOffset = it[0],
+                )
+            }
+        )
     }
 }
